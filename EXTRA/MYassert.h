@@ -2,6 +2,7 @@
 #define MY_ASSERT_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "colors.h"
 
 #define DOTXT(Message) #Message
@@ -22,6 +23,16 @@
             {                                         \
                 MCP (Condition);                      \
                 return ReturnNum;                     \
+            }                                         \
+        } while (0)
+
+#define MLA(Condition)                                \
+        do                                            \
+        {                                             \
+            if (!(Condition))                         \
+            {                                         \
+                MCP (Condition);                      \
+                exit (0);                             \
             }                                         \
         } while (0)
 

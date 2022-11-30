@@ -1,18 +1,21 @@
 //DIFFERENTIATOR FUNCTIONS
 //--14.11.22--started
 //=================================================================================================================================================================================================================
-
-#include "MYassert.h"
-
+//DO NOT NAME VARS NOT X!!!
 //=================================================================================================================================================================================================================
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
-#include <wchar.h>
 #include <locale.h>
+#include <wchar.h>
+
+//=================================================================================================================================================================================================================
+
+#include "MYassert.h"
 
 //=================================================================================================================================================================================================================
 
@@ -20,36 +23,115 @@
 
 //=================================================================================================================================================================================================================
 
+#define MAX_VARS 10
+
+#define ZERO 0
+#define ONE  1
+
+#define VAR_PRIOR -2
+#define VAL_PRIOR -2
+
+#define ADD_PRIOR 1
+#define SUB_PRIOR 1
+#define MUL_PRIOR 3
+#define DIV_PRIOR 4
+#define POW_PRIOR 5
+
+
+#define FUNC_PRIOR 100
+
+//=================================================================================================================================================================================================================
+
+#define UNITE(OP, Left, Right) create_OP_node (OP, Left, Right)
+#define CR_VAL(value) create_VAL_node (value)
+
+#define CL copy_node (Node->left)
+#define CR copy_node (Node->right)
+
+#define DL diff_node (Node->left)
+#define DR diff_node (Node->right)
+
+//=================================================================================================================================================================================================================
+
+//#define POISON_VAR -1
+
+// typedef struct
+// {
+//     char*   name   = NULL;
+//     int     label  = POISON_VAR;
+// } SVar;
+//
+// static SVar ArrVars[MAX_VARS]= {};
+
+//=================================================================================================================================================================================================================
+//main//
+//=================================================================================================================================================================================================================
+
 void test_main (void)
 {
+    setlocale(LC_CTYPE, "");
 
-    SNode* Root = read_eq (Root);
+    SBuffer Buffer = {};
 
-//     if (read_eq (Root) != 0)
-//     {
-//         printf (KRED "Error during reading occured!\n" KNRM);
-//
-//         delete_tree (Root);
-//
-//         return;
-//     }
+    fscanf (stdin, "%m[^\n]", &(Buffer.Array));
 
-    printf ("|\n");
+    SNode* Root = get_Main (&Buffer);
+    find_all_parents (Root);
 
+    free (Buffer.Array);
+
+    FILE* TEXFile = tex_head ();
+
+    printf ("function:             ");
     print_inorder (Root);
+    tex_tree (TEXFile, Root, MODE_FUN);
+    printf ("\n");
 
-    printf ("^\n");
+    collapse_tree (Root);
+    find_all_parents (Root);
 
-    delete_tree (Root);
+    fwprintf (TEXFile, L"\\\\ Упростим по возможности: \\\\");
+    printf ("collapsed function:   ");
+    print_inorder (Root);
+    tex_tree (TEXFile, Root, MODE_FUN);
+    printf ("\n");
+
+    SNode* DifRoot = diff_tree (Root);
+    find_all_parents (DifRoot);
+
+    fwprintf (TEXFile, L"\\\\ Возьмём производную: \\\\");
+    printf ("derivative:           ");
+    print_inorder (DifRoot);
+    tex_tree (TEXFile, DifRoot, MODE_DER);
+    printf ("\n");
+
+    collapse_tree (DifRoot);
+    find_all_parents (DifRoot);
+
+    fwprintf (TEXFile, L"\\\\ Упростим по возможности: \\\\");
+    printf ("collapsed derivative: ");
+    print_inorder (DifRoot);
+    tex_tree (TEXFile, DifRoot, MODE_DER);
+    printf ("\n");
+
+    tex_tail (TEXFile);
+
+    delete_tree (&Root);
+
+    delete_tree (&DifRoot);
+
+    //do_pdf ("diff.tex");
 
     return;
 }
 
 //=================================================================================================================================================================================================================
+//some buffer seekers and removers//
+//=================================================================================================================================================================================================================
 
 void seek (SBuffer* Buffer)
 {
-    for (; Buffer->ip < Buffer->size; Buffer->ip++)
+    while (Buffer->Array[Buffer->ip] != '\0')
     {
         if ((Buffer->Array[Buffer->ip] != '\n') && ((Buffer->Array[Buffer->ip] != ' ')))
         {
@@ -62,7 +144,7 @@ void seek (SBuffer* Buffer)
 
 void seek_out (SBuffer* Buffer)
 {
-    for (; Buffer->ip < Buffer->size; Buffer->ip++)
+    while (Buffer->Array[Buffer->ip] != '\0')
     {
         if ((Buffer->Array[Buffer->ip] == '\n'))
         {
@@ -74,184 +156,687 @@ void seek_out (SBuffer* Buffer)
     return;
 }
 
-//=================================================================================================================================================================================================================
-
-SNode* read_eq (SNode* Root)
+void remove_spaces (SBuffer* Buffer)
 {
-    int ErrCounter = 0;
-
-    SBuffer Buffer = {};
-
-    fscanf (stdin, "%m[^\n.]", &(Buffer.Array));
-
-    Buffer.size = strlen (Buffer.Array);
-
-    Root = read_node (&Buffer, Root, Left);
-
-//     printf ("root %p\n", Root);
-//     print_node (Root);
-//     printf ("\n");
-//
-//
-//     printf ("root l %p\n", Root->left);
-//     printf ("root l %p\n", Root->left);
-//     print_node (Root->left);
-//     printf ("\n");
-//
-//     printf ("root r %p\n", Root->right);
-//     printf ("root l %p\n", Root->left);
-//     print_node (Root->right);
-//     printf ("\n");
+    int counter = 0;
+    int inline_counter = 0;
 
 
-    // for (; Buffer.ip < Buffer.size; Buffer.ip++)
-    // {
-    //     ErrCounter += read_node (&Buffer, Root);
-    // }
+    while (Buffer->Array[counter] != '\0')
+    {
+        if (Buffer->Array[counter] == ' ')
+        {
+            inline_counter = counter;
 
-    free (Buffer.Array);
+            while (Buffer->Array[inline_counter] != '\0')
+            {
+                Buffer->Array[inline_counter] = Buffer->Array[inline_counter + 1];  //printf ("%d '%c' <- '%c'\n", inline_counter, Buffer[inline_counter], Buffer[inline_counter + 1]);
 
-    return Root;
+                inline_counter++; //printf ("'%c'\n", Buffer[inline_counter]);
+            }
+        }
+        else
+        {
+            ++counter;
+        }
+    }
+
+    return;
 }
 
-// void add_brackets_to_eq (SBuffer* Buffer)
-// {
-//     Buffer->size += 2;
-//     Buffer->Array = (char*) realloc (Buffer->Array, Buffer->size * sizeof (char));
-//
-//
-//     return;
-// }
+//=================================================================================================================================================================================================================
+//reader//
+//=================================================================================================================================================================================================================
 
-SNode* read_node (SBuffer* Buffer, SNode* Node, EBranch Branch)
+SNode* get_Main (SBuffer* Buffer)
 {
-    Node = (SNode*) calloc (1, sizeof (SNode));
-    //Node->left = (SNode*) calloc (1, sizeof (SNode));
-    //Node->right = (SNode*) calloc (1, sizeof (SNode));
+    remove_spaces (Buffer);
 
-    seek (Buffer);
+    SNode* Son = get_Add (Buffer);
 
-    if (Buffer->Array[Buffer->ip] == '(')
+    get_$ (Buffer);
+
+    return Son;
+}
+
+SNode* get_Add (SBuffer* Buffer)
+{
+    SNode* LeftSon = get_Mul (Buffer);
+
+    if ((Buffer->Array[Buffer->ip] == '+') || (Buffer->Array[Buffer->ip] == '-'))
     {
-        if (Branch == Left)
-        {
-            printf ("l %p\n", Node);
-        }
-        else
-        {
-            printf ("r %p\n", Node);
-        }
+        SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
+        Node->left = LeftSon;
+
+        char Operation = Buffer->Array[Buffer->ip];
         Buffer->ip++;
 
-        seek (Buffer);
+        Node->type = TOperation;
 
-        if (read_node (Buffer, Node->left, Left) == NULL)
+        Node->right = get_Add (Buffer);
+
+        if (Operation == '+')
         {
-            printf ("^\n");
-
-            Node->type = Node->left->type;
-            Node->data = Node->left->data;
-
-            //print_node (Node);
-
-            free (Node->left);
-            Node->left = NULL;
-
-            return Node;
+            Node->data.op = ADD;
+            Node->priority = ADD_PRIOR;
         }
-
-        seek (Buffer);
-
-        char* Word = NULL;
-
-        sscanf (&(Buffer->Array[Buffer->ip]), "%m[^ ]", &Word);
-
-        printf ("mid '%s'\n", Word);
-
-        Buffer->ip += strlen (Word);
-
-        seek (Buffer);
-
-        UData Data = {};
-
-        if (0) {}
-        #define DEF_OP(e_num, num, line) \
-        else if (strcasecmp (Word, line) == 0) \
-        { \
-            Data.op = e_num; \
-            fill_node (Node, Data, Operation); \
-        }
-
-        #include "DEF_Operations.h"
-
-        #undef DEF_OP
         else
         {
-            printf ("'%s'" KRED " wrong operation\n" KNRM , Word);
+            Node->data.op = SUB;
+            Node->priority = SUB_PRIOR;
         }
-
-        read_node (Buffer, Node->right, Right);
 
         return Node;
     }
-    else
+
+    return LeftSon;
+}
+
+SNode* get_Mul (SBuffer* Buffer)
+{
+    SNode* LeftSon = get_Pow (Buffer);
+
+    while ((Buffer->Array[Buffer->ip] == '*') || (Buffer->Array[Buffer->ip] == '/'))
     {
-        UData Data = {};
+        SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
-        char* Word = NULL;
+        Node->left = LeftSon;
 
-        sscanf (&(Buffer->Array[Buffer->ip]), "%m[^)]", &Word);
+        char Operation = Buffer->Array[Buffer->ip];
+        Buffer->ip++;
 
-        if (Branch == Left)
+        Node->type = TOperation;
+
+        Node->right = get_Mul (Buffer);
+
+        if (Operation == '*')
         {
-            printf ("lft '%s'\n", Word);
+            Node->data.op  = MUL;
+            Node->priority = MUL_PRIOR;
         }
         else
         {
-            printf ("rgt '%s'\n", Word);
+            Node->data.op  = DIV;
+            Node->priority = DIV_PRIOR;
         }
 
-        if (strtod (Buffer->Array, NULL) != 0)
-        {
-            Data.val = strtod (Buffer->Array, NULL);
-            fill_node (Node, Data, Value);
-        }
-        else
-        {
-            Data.var = Word;
-            fill_node (Node, Data, Variable);
-        }
+        return Node;
+    }
 
-        Buffer->ip += strlen (Word);
+    return LeftSon;
+}
 
-        if (Buffer->Array[Buffer->ip] != ')')
-        {
-            printf ("'%c' " KRED "wrong symbol (in \"...%.5s...\") expected " KGRN "')'\n" KNRM  , Buffer->Array[Buffer->ip], &(Buffer->Array[Buffer->ip]));
+SNode* get_Pow (SBuffer* Buffer)
+{
+    SNode* LeftSon = get_Bracket (Buffer);
 
-            return NULL;
-        }
+    while (Buffer->Array[Buffer->ip] == '^')
+    {
+        SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+        Node->left = LeftSon;
 
         Buffer->ip++;
 
-        //printf ("i have memory! %p\n", Node);
+        Node->type = TOperation;
+        Node->priority = POW_PRIOR;
+
+        Node->right = get_Pow (Buffer);
+
+        Node->data.op = POW;
+
+        return Node;
+    }
+
+    return LeftSon;
+}
+
+SNode* get_Bracket (SBuffer* Buffer)
+{
+    SNode* Node = NULL;//(SNode*) calloc (1, sizeof (SNode));
+
+    if (Buffer->Array[Buffer->ip] == '(')
+    {
+        Buffer->ip++;
+
+        Node = get_Add (Buffer);
+
+        MLA (Buffer->Array[Buffer->ip] == ')');
+
+        Buffer->ip++;
+    }
+
+    #define DEF_OP(e_num, num, line, size, ...) \
+    else if (strncasecmp (&(Buffer->Array[Buffer->ip]), line, size) == 0) \
+    {\
+        if (size > 1)\
+            Node = get_Function (Buffer);\
+    }
+
+    #include "DEF_Operations.h"
+
+    #undef DEF_OP
+
+    else if ((Buffer->Array[Buffer->ip] >= '0' && Buffer->Array[Buffer->ip] <= '9') ||
+            ((strncasecmp (&(Buffer->Array[Buffer->ip]), "pi", 2) == 0) || (strncasecmp (&(Buffer->Array[Buffer->ip]), "e", 1)) == 0))
+    {
+        Node = get_Number (Buffer);
+    }
+    else
+    {
+        Node = get_Variable (Buffer);
+    }
+
+    return Node;
+}
+
+SNode* get_Variable (SBuffer* Buffer)
+{
+    SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+    Node->type = TVariable;
+    Node->priority = VAR_PRIOR;
+
+    Node->data.var = Buffer->Array[Buffer->ip];
+
+    //sscanf (&(Buffer->Array[Buffer->ip]), "%m[^+-*/()\n]", &VarName); //REMAKE IF NEEDED!!
+    // MLA (VarName != NULL);
+
+    //size_t Length = strlen (VarName);
+
+    Buffer->ip++;//= Length;
+
+//     for (int counter = 0; counter < MAX_VARS; ++counter)
+//     {
+//         if (ArrVars[counter].name != NULL)
+//         {
+//             if (strcmp (VarName, ArrVars[counter].name) == 0)
+//             {
+//                 free (VarName);
+//
+//                 Node->data.var = ArrVars[counter].label;
+//
+//                 return Node;
+//             }
+//         }
+//     }
+//
+//     for (int counter = 0; counter < MAX_VARS; ++counter)
+//     {
+//         if (ArrVars[counter].label == POISON_VAR)
+//         {
+//             ArrVars[counter].name = VarName;
+//
+//             ArrVars[counter].label = counter;
+//
+//             Node->data.var = ArrVars[counter].label;
+//
+//             return Node;
+//         }
+//     }
+//
+//     printf ("TOO MUCH VARIABLES!\n");
+//
+//     for (int counter = 0; counter < MAX_VARS; ++counter)
+//     {
+//         printf ("%.2d| '%s' [%.2d]\n", counter, ArrVars[counter].name, ArrVars[counter].label);
+//     }
+
+    return Node;
+}
+
+SNode* get_Number (SBuffer* Buffer)
+{
+    SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+    double Value = 0;
+
+    if (Buffer->Array[Buffer->ip] == 'e' || Buffer->Array[Buffer->ip] == 'E')
+    {
+        Buffer->ip++;
+
+        Value =  M_E;
+    }
+    else if (strncasecmp (&(Buffer->Array[Buffer->ip]), "PI", 2) == 0)
+    {
+        Buffer->ip += 2;
+
+        Value = M_PI;
+    }
+    else
+    {
+        Value = get_Int (Buffer);
+
+        double SecondValue = 0;
+
+        double ThirdValue = 0;
+
+        if (Buffer->Array[Buffer->ip] == '.')
+        {
+            Buffer->ip++;
+
+            SecondValue = get_Frac (Buffer);
+        }
+
+
+        if (Buffer->Array[Buffer->ip] == 'e' || Buffer->Array[Buffer->ip] == 'E')
+        {
+            Buffer->ip++;
+
+            ThirdValue = get_Int (Buffer);
+        }
+
+        Value = Value + SecondValue;
+
+        Value = Value * pow (10, ThirdValue);
+    }
+
+    Node->type = TValue;
+    Node->priority = VAL_PRIOR;
+
+    Node->data.val = Value;
+
+    return Node;
+}
+
+double get_Frac (SBuffer* Buffer)
+{
+    int counter = 1;
+
+    int in_counter = 0;
+
+    double Value = 0;
+
+    double Add = 0;
+
+    size_t OldPtr = Buffer->ip;
+
+    while (Buffer->Array[Buffer->ip] >= '0' && Buffer->Array[Buffer->ip] <= '9')
+    {
+        Add = (Buffer->Array[Buffer->ip] - '0');
+
+        in_counter = counter;
+
+        while (in_counter > 0)
+        {
+            Add /= 10;
+
+            in_counter--;
+        }
+
+        Value = Value  + Add;
+
+        counter++;
+
+        Buffer->ip++;
+    }
+
+    MLA (Buffer->ip > OldPtr);
+
+    return Value;
+}
+
+double get_Int (SBuffer* Buffer)
+{
+    double Value = 0;
+
+    size_t OldPtr = Buffer->ip;
+
+    while (Buffer->Array[Buffer->ip] >= '0' && Buffer->Array[Buffer->ip] <= '9')
+    {
+        Value = Value * 10 + (Buffer->Array[Buffer->ip] - '0');
+
+        Buffer->ip++;
+    }
+
+    MLA (Buffer->ip > OldPtr);
+
+    return Value;
+}
+
+SNode* get_Function (SBuffer* Buffer)
+{
+    SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+    Node->type = TOperation;
+
+    Node->left = NULL;
+
+    size_t OldPtr = Buffer->ip;
+
+    if (0) {}
+    #define DEF_OP(e_num, e_number, line, size, diff_f, collapse_f, calc_f, prior, ...) \
+    else if (strncasecmp (&(Buffer->Array[Buffer->ip]), line, size) == 0) \
+    {\
+        Buffer->ip += size;\
+        \
+        Node->data.op = e_num;\
+        Node->priority = prior;\
+        Node->right = get_Bracket (Buffer);\
+    }
+
+    #include "DEF_Operations.h"
+
+    #undef DEF_OP
+
+    MLA (Buffer->ip > OldPtr);
+
+    return Node;
+}
+
+void get_$ (SBuffer* Buffer)
+{
+    size_t OldPtr = Buffer->ip;
+
+    if (Buffer->Array[Buffer->ip] == '\0')
+    {
+        Buffer->ip++;
+    }
+
+    MLA (Buffer->ip > OldPtr);
+
+    return;
+}
+
+//=================================================================================================================================================================================================================
+//derivative//
+//=================================================================================================================================================================================================================
+
+SNode* diff_tree (SNode* Root)
+{
+    SNode* DifRoot = diff_node (Root);
+
+    return DifRoot;
+}
+
+SNode* diff_node (SNode* Node)
+{
+    SNode* DiffNode = NULL;
+
+    if (Node->type == TValue)
+    {
+        DiffNode = CR_VAL (ZERO);
+
+        return DiffNode;
+    }
+
+    if (Node->type == TVariable)
+    {
+        DiffNode = (Node->data.var == 'x') ? CR_VAL (ONE) : CR_VAL (ZERO);
+
+        return DiffNode;
+    }
+
+    #define DEF_OP(e_num, num, line, size, diff_f, ...) \
+        case e_num:\
+            diff_f \
+            break;
+
+    switch (Node->data.op)
+    {
+        #include "DEF_Operations.h"
+
+        default:
+            printf ("diff default error!\n");
+            break;
+    }
+
+    #undef DEF_OP
+
+    return DiffNode;
+}
+
+SNode* copy_node (SNode* Original)
+{
+    SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+    Node->type = Original->type;
+    Node->data = Original->data;
+    Node->priority = Original->priority;
+
+    if (Original->left != NULL)
+    {
+        Node->left  = copy_node (Original->left);
+    }
+
+    if (Original->right != NULL)
+    {
+        Node->right  = copy_node (Original->right);
+    }
+
+    return Node;
+}
+
+void collapse_tree (SNode* Root)
+{
+    int running = 1;
+    while (running)
+    {
+        running = 0;
+        running += clean_const (Root);
+        //print_inorder (Root);
+        //printf ("\n");
+        running += clean_zero  (Root);
+        //print_inorder (Root);
+        //printf ("\n");
+    }
+
+    return;
+}
+
+int clean_const (SNode* Node)
+{
+    if (Node == NULL)
+    {
+        return 0;
+    }
+
+    //print_node (Node);
+    //printf ("\n");
+    if ((Node->type == TOperation) && ((Node->left != NULL && Node->left->type == TValue) && (Node->right != NULL && Node->right->type == TValue)))
+    {
+        Node->type = TValue;
+
+        switch (Node->data.op)
+        {
+            case ADD:
+                Node->data.val = Node->left->data.val + Node->right->data.val;
+                break;
+
+            case SUB:
+                Node->data.val = Node->left->data.val - Node->right->data.val;
+                break;
+
+            case MUL:
+                Node->data.val = Node->left->data.val * Node->right->data.val;
+                break;
+
+            case DIV:
+                Node->data.val = Node->left->data.val / Node->right->data.val;
+                break;
+
+            // case SIN:
+            //     Node->data.val = sin (Node->left->data.val);
+            //     break;
+
+            default:
+                printf ("clean_const DEFAULT ERROR!\n");
+                return 0;
+        }
 
         free (Node->left);
-        free (Node->right);
 
-        return NULL;
+        if (Node->right != NULL)
+        {
+            free (Node->right);
+        }
+
+        Node->left = NULL;
+        Node->right = NULL;
+
+        return 1;
     }
-//     else
-//     {
-//         printf ( "'%c'" KRED " wrong symbol (in \"...%.5s...\") expected " KGRN "'('\n" KNRM , Buffer->Array[Buffer->ip], &(Buffer->Array[Buffer->ip]));
-//
-//         return 1;
-//     }
+
+    if (Node->left != NULL && Node->right != NULL)
+    {
+        return (clean_const (Node->left) + clean_const (Node->right));
+    }
+    else if (Node->left != NULL)
+    {
+        return clean_const (Node->left);
+    }
+    else if (Node->right != NULL)
+    {
+        return clean_const (Node->right);
+    }
+
+    return 0;
+}
+
+int clean_zero (SNode* Node)
+{
+    if (Node == NULL)
+    {
+        return 0;
+    }
+
+    #define DEF_OP(e_num, num, line, size, diff_f, collapse_f, ...) \
+            case e_num: \
+                collapse_f \
+                break;
+
+    if ((Node->type == TOperation) && (((Node->left != NULL) && (Node->left->type == TValue)) || ((Node->right != NULL) && (Node->right->type == TValue ))))
+    {
+        switch (Node->data.op)
+        {
+            #include "DEF_Operations.h"
+
+            default:
+                printf ("clean_zero DEFAULT ERROR!\n");
+        }
+    }
+    #undef DEF_OP
+
+    if (Node->left != NULL || Node->right != NULL)
+    {
+        return (clean_zero (Node->left) + clean_zero (Node->right));
+    }
+
+    return 0;
+}
+
+int find_vars (SNode* Node)
+{
+    if (Node->type == TVariable)
+    {
+        return 1;
+    }
+
+    if (Node->left != NULL && Node->right != NULL)
+    {
+        return (find_vars (Node->left) + find_vars (Node->right));
+    }
 
     return 0;
 }
 
 //=================================================================================================================================================================================================================
+//node functions//
+//=================================================================================================================================================================================================================
+
+SNode* create_OP_node (EOperations OP, SNode* Left, SNode* Right)
+{
+    SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+    Node->type = TOperation;
+    Node->data.op = OP;
+
+    switch (OP)
+    {
+
+    #define DEF_OP(e_num, num, line, size, diff_f, collapse_f, calc_f, prior, ...) \
+        case e_num: \
+            Node->priority = prior; \
+            break;
+
+    #include "DEF_Operations.h"
+
+    #undef DEF_OP
+
+        default:
+            Node->priority = 1000;
+    }
+
+    Node->left  = Left;
+    Node->right = Right;
+
+    return Node;
+}
+
+SNode* create_VAR_node (char Variable)
+{
+    SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+    Node->type = TVariable;
+    Node->data.var = Variable;
+    Node->priority = VAR_PRIOR;
+
+    Node->left  = NULL;
+    Node->right = NULL;
+
+    return Node;
+}
+
+SNode* create_VAL_node (double Value)
+{
+    SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+    Node->type = TValue;
+    Node->data.val = Value;
+    Node->priority = VAL_PRIOR;
+
+    Node->left  = NULL;
+    Node->right = NULL;
+
+    return Node;
+}
+
+void refactor_left (SNode* Node)
+{
+    SNode* Old = Node->right;
+
+    free (Node->left);
+
+    Node->left  = Old->left;
+    Node->right = Old->right;
+
+    Node->type  = Old->type;
+    Node->data  = Old->data;
+    Node->priority = Old->priority;
+
+    free (Old);
+
+    return;
+}
+
+void refactor_right (SNode* Node)
+{
+    SNode* Old = Node->left;
+
+    free (Node->right);
+
+    Node->left  = Old->left;
+    Node->right = Old->right;
+
+    Node->type  = Old->type;
+    Node->data  = Old->data;
+    Node->priority = Old->priority;
+
+    free (Old);
+
+    return;
+}
 
 void correct_node (SNode* Node, UData Data)
 {
@@ -287,30 +872,36 @@ SNode* add_right_branch (SNode* Node, SNode* Parent)
     return Node;
 }
 
-int delete_tree (SNode* Node)
+int delete_tree (SNode** Node)
 {
-    if (Node == NULL)
+    if (*Node == NULL)
     {
         return 0;
     }
 
-    if (Node->left != NULL)
+    if ((*Node)->left != NULL)
     {
-        delete_tree (Node->left);
+        delete_tree (&((*Node)->left));
     }
 
-    if (Node->right != NULL)
+    if ((*Node)->right != NULL)
     {
-        delete_tree (Node->right);
+        delete_tree (&((*Node)->right));
     }
 
     //free (Node->data);
 
-    free (Node);
+    //printf ("\n%p freed\n", *Node);
+    free (*Node);
+
+    *Node = NULL;
+    //printf ("\n%p freed^\n", *Node);
 
     return 0;
 }
 
+//=================================================================================================================================================================================================================
+//printers//
 //=================================================================================================================================================================================================================
 
 void print_preorder (SNode* Node)
@@ -346,7 +937,10 @@ void print_inorder (SNode* Node)
         return;
     }
 
-    printf ("(");
+    if ((Node->parent != NULL) && (((Node->left != NULL) && (Node->parent->priority > Node->priority) && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))) || (Node->parent->type == TOperation && Node->data.op == ADD && (Node->parent->type == TOperation && Node->parent->data.op == SUB) && (Node->parent->right == Node))))
+    {
+        printf ("(");
+    }
 
     if (Node->left != NULL)
     {
@@ -360,7 +954,10 @@ void print_inorder (SNode* Node)
         print_inorder (Node->right);
     }
 
-    printf (")");
+    if ((Node->parent != NULL) && (((Node->left != NULL) && (Node->parent->priority > Node->priority) && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))) || (Node->type == TOperation && Node->data.op == ADD && (Node->parent->type == TOperation && Node->parent->data.op == SUB) && (Node->parent->right == Node))))
+    {
+        printf (")");
+    }
 
     return;
 }
@@ -393,14 +990,15 @@ void print_postorder (SNode* Node)
 
 void print_node (SNode* Node)
 {
+    //printf ("%p\n", Node);
     switch (Node->type)
     {
-        case Operation:
+        case TOperation:
             switch (Node->data.op)
             {
-                #define DEF_OP(e_num, num, line) \
+                #define DEF_OP(e_num, num, line, size, ...) \
                 case e_num: \
-                    printf ("%s", line); \
+                    printf (" %s ", line); \
                     break;
 
                 #include "DEF_Operations.h"
@@ -412,17 +1010,284 @@ void print_node (SNode* Node)
             }
             break;
 
-        case Value:
-            printf ("%lg", Node->data.val);
+        case TValue:
+            if (Node->data.val == M_E)
+            {
+                printf ("E", Node->data.val);
+            }
+            else if (Node->data.val == M_PI)
+            {
+                printf ("PI", Node->data.val);
+            }
+            else
+            {
+                printf ("%lg", Node->data.val);
+            }
             break;
 
-        case Variable:
-            printf ("%s", Node->data.var);
+        case TVariable:
+            printf ("%c", Node->data.var);
             break;
 
         default:
             printf (KRED "Node_type Default error!" KNRM);
     }
+
+    //printf ("[%d]", Node->priority);
+
+    return;
+}
+
+void find_all_parents (SNode* Root)
+{
+    if (Root != NULL)
+    {
+        find_parent (Root->left, Root);
+        find_parent (Root->right, Root);
+    }
+
+    return;
+}
+
+void find_parent (SNode* Node, SNode* Parent)
+{
+    if (Node == NULL)
+    {
+        return;
+    }
+
+    Node->parent = Parent; //printf ("1\n");
+
+    if (Node->left != NULL)
+    {
+        find_parent (Node->left, Node);
+    }
+
+    if (Node->right != NULL)
+    {
+        find_parent (Node->right, Node);
+    }
+
+    return;
+}
+
+//=================================================================================================================================================================================================================
+//LaTeX//
+//=================================================================================================================================================================================================================
+
+FILE* tex_head (void)
+{
+    FILE* TEXFile = fopen ("TEX/diff.tex","w");
+
+    fwprintf (TEXFile,
+    LR"(
+    \documentclass[a4paper, 12pt]{article}
+    \usepackage{geometry}
+    \geometry{a4paper,
+    total={170mm,257mm},left=2cm,right=2cm,
+    top=2cm,bottom=2cm}
+    \usepackage{setspace}
+    \usepackage{color}
+    \usepackage{hyperref}
+    \usepackage{mathtext}
+    \usepackage{amsmath}
+    \usepackage[utf8]{inputenc}
+    \usepackage[english,russian]{babel}
+    \usepackage{graphicx, float}
+    \usepackage{tabularx, colortbl}
+    \usepackage{textcomp}
+    \usepackage{caption}
+    \usepackage{wrapfig}
+    \usepackage{multirow}
+    \usepackage{subfigure}
+
+    \DeclareMathOperator{\sgn}{\mathop{sgn}}
+    \newcommand*{\hm}[1]{#1\nobreak\discretionary{}
+        {\hbox{$\mathsurround=0pt #1$}}{}}
+
+
+    \author{Рачков Михаил Васильевич, Б01-201}
+    \date{%s}
+    \title{\textbf{Отчёт о взятии производной} \\(После взятия производная была положена обратно)}
+
+
+    \captionsetup{labelsep=period}
+
+    \newcommand{\parag}[1]{\paragraph*{#1:}}
+    \newcounter{Points}
+    \setcounter{Points}{1}
+    \newcommand{\point}{\noindent \arabic{Points}. \addtocounter{Points}{1}}
+    \newcolumntype{C}{>{\centering\arraybackslash}X}
+
+
+    \begin{document}
+
+        \maketitle )"
+    , __DATE__);
+
+    return TEXFile;
+}
+
+void tex_tail (FILE* TEXFile)
+{
+    fwprintf (TEXFile,
+    LR"(
+    \section{Источники}
+    Я самоучка.
+    )");
+
+    fwprintf (TEXFile,
+    LR"(
+    \end{document}
+    )");
+
+    fclose (TEXFile);
+}
+
+void tex_tree (FILE* TEXFile, SNode* Root, ETreeMode Mode)
+{
+    switch (Mode)
+    {
+        case MODE_FUN:
+            fwprintf (TEXFile,
+            LR"(
+            \maketitle
+            \begin{equation}
+            f(x)~=~)");
+            break;
+
+        case MODE_DER:
+            fwprintf (TEXFile,
+            LR"(
+            \maketitle
+            \begin{equation}
+            f'(x)~=~)");
+            break;
+
+        case MODE_EQ:
+            fwprintf (TEXFile,
+            LR"(
+            \maketitle
+            \begin{equation}
+            f(x)~=~)");
+            break;
+
+        default:
+            fwprintf (TEXFile, L"default mode error!\n");
+    }
+
+    tex_node (TEXFile, Root);
+
+    fwprintf (TEXFile,
+    LR"(
+    \end{equation}
+    )");
+}
+
+void tex_node (FILE* TEXFile, SNode* Node)
+{
+    if (Node == NULL)
+    {
+        return;
+    }
+
+    if (Node->type == TOperation && Node->data.op == DIV)
+    {
+        fwprintf (TEXFile, L"\\dfrac{");
+    }
+
+    if ((Node->parent != NULL)
+    && (((Node->left != NULL)
+    && (Node->parent->priority > Node->priority)
+    && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))
+    && (!(Node->parent->type == TOperation && Node->parent->data.op == POW)))
+    || (Node->type == TOperation && Node->data.op == ADD
+        && (Node->parent->type == TOperation && Node->parent->data.op == SUB)
+        && (Node->parent->right == Node))))
+    {
+        fwprintf (TEXFile, L"(");
+    }
+
+    if (Node->left != NULL)
+    {
+        tex_node (TEXFile, Node->left);
+    }
+
+    switch (Node->type)
+    {
+
+        case TOperation:
+            switch (Node->data.op)
+            {
+                #define DEF_OP(e_num, num, line, size, diff_f, collapse_f, calc_f, prior, print_f) \
+                case e_num: \
+                    print_f \
+                    break;
+
+                #include "DEF_Operations.h"
+
+                #undef DEF_OP
+
+                default:
+                    fwprintf (TEXFile, L"Op_type default error! '%d'\n" KNRM, Node->data.op);
+            }
+            break;
+
+        case TValue:
+            if (Node->data.val == M_E)
+            {
+                fwprintf (TEXFile, L" e ", Node->data.val);
+            }
+            else if (Node->data.val == M_PI)
+            {
+                fwprintf (TEXFile, L" \\pi ", Node->data.val);
+            }
+            else
+            {
+                fwprintf (TEXFile, L"%lg", Node->data.val);
+            }
+            break;
+
+        case TVariable:
+            fwprintf (TEXFile, L"%c", Node->data.var);
+            break;
+
+        default:
+            printf (KRED "Node_type Default error!" KNRM);
+    }
+
+    if (Node->type == TOperation && Node->data.op == POW)
+    {
+        fwprintf (TEXFile, L"{");
+    }
+
+    if (Node->right != NULL)
+    {
+        tex_node (TEXFile, Node->right);
+    }
+
+    if (Node->type == TOperation && (Node->data.op == POW || Node->data.op == DIV))
+    {
+        fwprintf (TEXFile, L"}");
+    }
+    else if ((Node->parent != NULL)
+    && (((Node->left != NULL)
+    && (Node->parent->priority > Node->priority)
+    && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))
+    && (!(Node->parent->type == TOperation && Node->parent->data.op == POW)))
+    || (Node->type == TOperation && Node->data.op == ADD
+        && (Node->parent->type == TOperation && Node->parent->data.op == SUB)
+        && (Node->parent->right == Node))))
+    {
+        fwprintf (TEXFile, L")");
+    }
+
+    return;
+}
+
+void do_pdf (const char* TEXName)
+{
+    system ("pdftex TEX/diff.tex");
 
     return;
 }
