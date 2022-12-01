@@ -1,0 +1,75 @@
+digraph {
+    rankdir = VR
+    graph [splines = curved];
+    bgcolor = "white";
+    node [shape = "plaintext", style = "solid"];
+
+                    node_0x604000000050
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#39c3ed">
+ - </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+
+                    node_0x604000000010
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#f21847">
+ 1 </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x604000000050 -> node_0x604000000010;
+
+                    node_0x6040000000d0
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#39c3ed">
+ + </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x604000000050 -> node_0x6040000000d0;
+
+                    node_0x604000000090
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#f21847">
+ 2 </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x6040000000d0 -> node_0x604000000090;
+
+                    node_0x604000000110
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#f21847">
+ 3 </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x6040000000d0 -> node_0x604000000110;
+}

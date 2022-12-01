@@ -23,7 +23,7 @@ DO: DO_DIFFERENTIATOR
 
 #==============================================================================================================================================
 
-DO_DIFFERENTIATOR: OBJECTS OBJECTS/diff.o OBJECTS/main_diff.o
+DO_DIFFERENTIATOR: FOLDERS OBJECTS/diff.o OBJECTS/main_diff.o
 	$(VR_COMPILER) OBJECTS/diff.o OBJECTS/main_diff.o -o diff $(VR_FLAGS)
 
 #==============================================================================================================================================
@@ -36,5 +36,5 @@ OBJECTS/main_diff.o: DIFFERENTIATOR/main_diff.cpp
 
 #==============================================================================================================================================
 
-OBJECTS:
-	mkdir -p OBJECTS
+FOLDERS:
+	mkdir -p OBJECTS; mkdir -p GRAPH_VIZ

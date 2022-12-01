@@ -87,6 +87,8 @@ void test_main (void)
     tex_tree (TEXFile, Root, MODE_FUN);
     printf ("\n");
 
+    make_gv_tree (Root, "GRAPH_VIZ/gvDiff_func.dot");
+
     collapse_tree (Root);
     find_all_parents (Root);
 
@@ -115,6 +117,8 @@ void test_main (void)
     printf ("\n");
 
     tex_tail (TEXFile);
+
+    make_gv_tree (DifRoot, "GRAPH_VIZ/gvDiff_der.dot");
 
     delete_tree (&Root);
 
@@ -937,7 +941,7 @@ void print_inorder (SNode* Node)
         return;
     }
 
-    if ((Node->parent != NULL) && (((Node->left != NULL) && (Node->parent->priority > Node->priority) && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))) || (Node->parent->type == TOperation && Node->data.op == ADD && (Node->parent->type == TOperation && Node->parent->data.op == SUB) && (Node->parent->right == Node))))
+    if ((Node->parent != NULL) && (((Node->left != NULL) && (Node->parent->priority > Node->priority) && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))) || (Node->type == TOperation && Node->data.op == ADD && (Node->parent->type == TOperation && Node->parent->data.op == SUB) && (Node->parent->right == Node))))
     {
         printf ("(");
     }
@@ -1288,6 +1292,146 @@ void tex_node (FILE* TEXFile, SNode* Node)
 void do_pdf (const char* TEXName)
 {
     system ("pdftex TEX/diff.tex");
+
+    return;
+}
+
+//=================================================================================================================================================================================================================
+//TreeViz//
+//=================================================================================================================================================================================================================
+
+int make_gv_tree (SNode* Root, const char* FileName)
+{
+    FILE* gvInputFile = fopen (FileName, "w");
+    MLA (gvInputFile != NULL);
+
+    fprintf (gvInputFile,
+        R"(digraph {
+    rankdir = VR
+    graph [splines = curved];
+    bgcolor = "white";
+    node [shape = "plaintext", style = "solid"];)");
+
+    make_gv_node (gvInputFile, Root);
+
+    fprintf (gvInputFile, "\n}\n");
+
+    fclose (gvInputFile);
+
+    draw_gv_tree (FileName);
+
+    return 0;
+}
+
+void make_gv_node (FILE* File, SNode* Node)
+{
+    MLA (File != NULL);
+
+    if (Node == NULL)
+    {
+        return;
+    }
+
+    fprintf (File,
+        R"(
+
+                    node_%p
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr>)", Node);
+
+    print_gv_node (File, Node);
+
+    fprintf (File,
+            R"(</td>
+                            </tr>)");
+
+    // if (Node->left != NULL)
+    // {
+    //     fprintf(File,
+    //     R"(
+    //                         <tr>
+    //                             <td bgcolor = "#61de4b" port="left" > %p   </td>
+    //                             <td bgcolor = "#f27798" port="right"> %p   </td>
+    //                         </tr>)", Node->left, Node->right);
+    // }
+
+    fprintf (File, R"(
+                        </table>
+                        >
+                    ]
+                    )");
+
+    if (Node->parent != NULL)
+    {
+        //wprintf (L"!%d!\n", Node->branch);
+        if ((Node->parent != NULL) && (Node->parent->left == Node))
+        {
+            fprintf (File,  "\n                    node_%p -> node_%p;",
+                        Node->parent, Node);
+        }
+        else if ((Node->parent != NULL) && (Node->parent->right == Node))
+        {
+            fprintf (File,  "\n                    node_%p -> node_%p;",
+                        Node->parent, Node);
+        }
+    }
+
+    make_gv_node (File, Node->left);
+    make_gv_node (File, Node->right);
+}
+
+void print_gv_node (FILE* File, SNode* Node)
+{
+    MLA (File != NULL);
+
+    switch (Node->type)
+    {
+        case TOperation:
+            switch (Node->data.op)
+            {
+
+                #define DEF_OP(e_num, num, line, size, diff_f, collapse_f, calc_f, prior, print_f) \
+                case e_num: \
+                    fprintf (File, "<td colspan=\"2\" bgcolor = \"#39c3ed\">\n" " %s ", line); \
+                    break;
+
+                    #include "DEF_Operations.h"
+
+                #undef DEF_OP
+            }
+            break;
+
+        case TVariable:
+            fprintf (File, "<td colspan=\"2\" bgcolor = \"#1cfc03\">\n"" %c ", Node->data.var);
+            break;
+
+        case TValue:
+            fprintf (File, "<td colspan=\"2\" bgcolor = \"#f21847\">\n"" %lg ", Node->data.val);
+            break;
+    }
+
+    return;
+}
+
+void draw_gv_tree (const char* FileName)
+{
+    size_t length = strlen (FileName) + 60;
+
+    char* Line_1 = (char*) calloc (sizeof (*FileName), length);
+
+    sprintf (Line_1, "dot -Tpng %s -o %s.png", FileName, FileName);
+    //system ("dot -Tpng gvDiff.dot -o gvDiff.png");
+    system (Line_1);
+
+    sprintf (Line_1, "xdg-open %s.png", FileName);
+
+    //system ("xdg-open 1.png");
+    system (Line_1);
+
+    free (Line_1);
 
     return;
 }
