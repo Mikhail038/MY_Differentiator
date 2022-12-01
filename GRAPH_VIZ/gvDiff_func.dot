@@ -4,34 +4,7 @@ digraph {
     bgcolor = "white";
     node [shape = "plaintext", style = "solid"];
 
-                    node_0x604000000050
-                    [
-                        label=
-                        <
-                        <table border="0" cellborder="1" cellspacing="0">
-                            <tr><td colspan="2" bgcolor = "#39c3ed">
- - </td>
-                            </tr>
-                        </table>
-                        >
-                    ]
-                    
-
-                    node_0x604000000010
-                    [
-                        label=
-                        <
-                        <table border="0" cellborder="1" cellspacing="0">
-                            <tr><td colspan="2" bgcolor = "#f21847">
- 1 </td>
-                            </tr>
-                        </table>
-                        >
-                    ]
-                    
-                    node_0x604000000050 -> node_0x604000000010;
-
-                    node_0x6040000000d0
+                    node_0x604000000110
                     [
                         label=
                         <
@@ -43,33 +16,116 @@ digraph {
                         >
                     ]
                     
-                    node_0x604000000050 -> node_0x6040000000d0;
+
+                    node_0x604000000010
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#39c3ed">
+ sin </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x604000000110 -> node_0x604000000010;
 
                     node_0x604000000090
                     [
                         label=
                         <
                         <table border="0" cellborder="1" cellspacing="0">
-                            <tr><td colspan="2" bgcolor = "#f21847">
+                            <tr><td colspan="2" bgcolor = "#39c3ed">
+ ^ </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x604000000010 -> node_0x604000000090;
+
+                    node_0x604000000050
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#1cfc03">
+ x </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x604000000090 -> node_0x604000000050;
+
+                    node_0x6040000000d0
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#f2464f">
  2 </td>
                             </tr>
                         </table>
                         >
                     ]
                     
-                    node_0x6040000000d0 -> node_0x604000000090;
+                    node_0x604000000090 -> node_0x6040000000d0;
 
-                    node_0x604000000110
+                    node_0x604000000150
                     [
                         label=
                         <
                         <table border="0" cellborder="1" cellspacing="0">
-                            <tr><td colspan="2" bgcolor = "#f21847">
- 3 </td>
+                            <tr><td colspan="2" bgcolor = "#39c3ed">
+ sin </td>
                             </tr>
                         </table>
                         >
                     ]
                     
-                    node_0x6040000000d0 -> node_0x604000000110;
+                    node_0x604000000110 -> node_0x604000000150;
+
+                    node_0x6040000001d0
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#39c3ed">
+ ^ </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x604000000150 -> node_0x6040000001d0;
+
+                    node_0x604000000190
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#1cfc03">
+ x </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x6040000001d0 -> node_0x604000000190;
+
+                    node_0x604000000210
+                    [
+                        label=
+                        <
+                        <table border="0" cellborder="1" cellspacing="0">
+                            <tr><td colspan="2" bgcolor = "#f2464f">
+ 2 </td>
+                            </tr>
+                        </table>
+                        >
+                    ]
+                    
+                    node_0x6040000001d0 -> node_0x604000000210;
 }

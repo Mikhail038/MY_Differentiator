@@ -90,6 +90,8 @@ SNode* get_Main (SBuffer* Buffer);
 
 SNode* get_Add (SBuffer* Buffer);
 
+SNode* get_Sub (SBuffer* Buffer);
+
 SNode* get_Mul (SBuffer* Buffer);
 
 SNode* get_Pow (SBuffer* Buffer);

@@ -205,9 +205,9 @@ SNode* get_Main (SBuffer* Buffer)
 
 SNode* get_Add (SBuffer* Buffer)
 {
-    SNode* LeftSon = get_Mul (Buffer);
+    SNode* LeftSon = get_Sub (Buffer);
 
-    if ((Buffer->Array[Buffer->ip] == '+') || (Buffer->Array[Buffer->ip] == '-'))
+    if (Buffer->Array[Buffer->ip] == '+')
     {
         SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
@@ -220,16 +220,34 @@ SNode* get_Add (SBuffer* Buffer)
 
         Node->right = get_Add (Buffer);
 
-        if (Operation == '+')
-        {
-            Node->data.op = ADD;
-            Node->priority = ADD_PRIOR;
-        }
-        else
-        {
-            Node->data.op = SUB;
-            Node->priority = SUB_PRIOR;
-        }
+        Node->data.op = ADD;
+        Node->priority = ADD_PRIOR;
+
+        return Node;
+    }
+
+    return LeftSon;
+}
+
+SNode* get_Sub (SBuffer* Buffer)
+{
+    SNode* LeftSon = get_Mul (Buffer);
+
+    if (Buffer->Array[Buffer->ip] == '-')
+    {
+        SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+        Node->left = LeftSon;
+
+        char Operation = Buffer->Array[Buffer->ip];
+        Buffer->ip++;
+
+        Node->type = TOperation;
+
+        Node->right = get_Sub (Buffer);
+
+        Node->data.op = SUB;
+        Node->priority = SUB_PRIOR;
 
         return Node;
     }
@@ -239,9 +257,26 @@ SNode* get_Add (SBuffer* Buffer)
 
 SNode* get_Mul (SBuffer* Buffer)
 {
-    SNode* LeftSon = get_Pow (Buffer);
+    SNode* LeftSon = NULL;
 
-    while ((Buffer->Array[Buffer->ip] == '*') || (Buffer->Array[Buffer->ip] == '/'))
+    if (0) {}
+
+    #define DEF_OP(e_num, num, line, size, ...) \
+    else if (strncasecmp (&(Buffer->Array[Buffer->ip]), line, size) == 0) \
+    {\
+        if (size > 1)\
+            LeftSon = get_Function (Buffer);\
+    }
+
+    #include "DEF_Operations.h"
+
+    #undef DEF_OP
+    else
+    {
+        LeftSon = get_Pow (Buffer);
+    }
+
+    if ((Buffer->Array[Buffer->ip] == '*') || (Buffer->Array[Buffer->ip] == '/'))
     {
         SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
@@ -275,7 +310,7 @@ SNode* get_Pow (SBuffer* Buffer)
 {
     SNode* LeftSon = get_Bracket (Buffer);
 
-    while (Buffer->Array[Buffer->ip] == '^')
+    if (Buffer->Array[Buffer->ip] == '^')
     {
         SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
@@ -310,18 +345,6 @@ SNode* get_Bracket (SBuffer* Buffer)
 
         Buffer->ip++;
     }
-
-    #define DEF_OP(e_num, num, line, size, ...) \
-    else if (strncasecmp (&(Buffer->Array[Buffer->ip]), line, size) == 0) \
-    {\
-        if (size > 1)\
-            Node = get_Function (Buffer);\
-    }
-
-    #include "DEF_Operations.h"
-
-    #undef DEF_OP
-
     else if ((Buffer->Array[Buffer->ip] >= '0' && Buffer->Array[Buffer->ip] <= '9') ||
             ((strncasecmp (&(Buffer->Array[Buffer->ip]), "pi", 2) == 0) || (strncasecmp (&(Buffer->Array[Buffer->ip]), "e", 1)) == 0))
     {
@@ -517,7 +540,7 @@ SNode* get_Function (SBuffer* Buffer)
         \
         Node->data.op = e_num;\
         Node->priority = prior;\
-        Node->right = get_Bracket (Buffer);\
+        Node->right = get_Pow (Buffer);\
     }
 
     #include "DEF_Operations.h"
@@ -1274,7 +1297,8 @@ void tex_node (FILE* TEXFile, SNode* Node)
     {
         fwprintf (TEXFile, L"}");
     }
-    else if ((Node->parent != NULL)
+
+    if ((Node->parent != NULL)
     && (((Node->left != NULL)
     && (Node->parent->priority > Node->priority)
     && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))
@@ -1285,6 +1309,7 @@ void tex_node (FILE* TEXFile, SNode* Node)
     {
         fwprintf (TEXFile, L")");
     }
+
 
     return;
 }
@@ -1409,7 +1434,7 @@ void print_gv_node (FILE* File, SNode* Node)
             break;
 
         case TValue:
-            fprintf (File, "<td colspan=\"2\" bgcolor = \"#f21847\">\n"" %lg ", Node->data.val);
+            fprintf (File, "<td colspan=\"2\" bgcolor = \"#f2464f\">\n"" %lg ", Node->data.val);
             break;
     }
 
