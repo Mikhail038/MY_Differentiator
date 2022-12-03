@@ -124,7 +124,7 @@ void test_main (void)
 
     delete_tree (&DifRoot);
 
-    //do_pdf ("diff.tex");
+    do_pdf ("TEX/diff.tex");
 
     return;
 }
@@ -196,11 +196,13 @@ SNode* get_Main (SBuffer* Buffer)
 {
     remove_spaces (Buffer);
 
-    SNode* Son = get_Add (Buffer);
+    SNode* Root = get_Add (Buffer);
+
+    //make_gv_tree (Root, "GRAPH_VIZ/gvDiff_func.dot");
 
     get_$ (Buffer);
 
-    return Son;
+    return Root;
 }
 
 SNode* get_Add (SBuffer* Buffer)
@@ -233,7 +235,15 @@ SNode* get_Sub (SBuffer* Buffer)
 {
     SNode* LeftSon = get_Mul (Buffer);
 
-    if (Buffer->Array[Buffer->ip] == '-')
+    // if (LeftSon == NULL)
+    // {
+    //     LeftSon = (SNode*) calloc (1, sizeof (SNode));
+    //     LeftSon->type = TVariable;
+    //     LeftSon->data.var = ' ';
+    // }
+    //print_node (LeftSon);
+
+    if (Buffer->Array[Buffer->ip] == '-' && LeftSon != NULL)
     {
         SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
@@ -251,32 +261,33 @@ SNode* get_Sub (SBuffer* Buffer)
 
         return Node;
     }
+    else if (Buffer->Array[Buffer->ip] == '-')
+    {
+        SNode* Node = (SNode*) calloc (1, sizeof (SNode));
+
+        Node->left = LeftSon;
+
+        char Operation = Buffer->Array[Buffer->ip];
+        Buffer->ip++;
+
+        Node->type = TOperation;
+
+        Node->right = get_Bracket (Buffer);
+
+        Node->data.op = SUB;
+        Node->priority = SUB_PRIOR;
+
+        return Node;
+    }
 
     return LeftSon;
 }
 
 SNode* get_Mul (SBuffer* Buffer)
 {
-    SNode* LeftSon = NULL;
+    SNode* LeftSon = get_Pow (Buffer);
 
-    if (0) {}
-
-    #define DEF_OP(e_num, num, line, size, ...) \
-    else if (strncasecmp (&(Buffer->Array[Buffer->ip]), line, size) == 0) \
-    {\
-        if (size > 1)\
-            LeftSon = get_Function (Buffer);\
-    }
-
-    #include "DEF_Operations.h"
-
-    #undef DEF_OP
-    else
-    {
-        LeftSon = get_Pow (Buffer);
-    }
-
-    if ((Buffer->Array[Buffer->ip] == '*') || (Buffer->Array[Buffer->ip] == '/'))
+    while ((Buffer->Array[Buffer->ip] == '*') || (Buffer->Array[Buffer->ip] == '/'))
     {
         SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
@@ -310,7 +321,7 @@ SNode* get_Pow (SBuffer* Buffer)
 {
     SNode* LeftSon = get_Bracket (Buffer);
 
-    if (Buffer->Array[Buffer->ip] == '^')
+    while (Buffer->Array[Buffer->ip] == '^')
     {
         SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
@@ -345,6 +356,18 @@ SNode* get_Bracket (SBuffer* Buffer)
 
         Buffer->ip++;
     }
+
+    #define DEF_OP(e_num, num, line, size, ...) \
+    else if (strncasecmp (&(Buffer->Array[Buffer->ip]), line, size) == 0) \
+    {\
+        if (size > 1)\
+            Node = get_Function (Buffer);\
+    }
+
+    #include "DEF_Operations.h"
+
+    #undef DEF_OP
+
     else if ((Buffer->Array[Buffer->ip] >= '0' && Buffer->Array[Buffer->ip] <= '9') ||
             ((strncasecmp (&(Buffer->Array[Buffer->ip]), "pi", 2) == 0) || (strncasecmp (&(Buffer->Array[Buffer->ip]), "e", 1)) == 0))
     {
@@ -418,6 +441,8 @@ SNode* get_Number (SBuffer* Buffer)
     SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
     double Value = 0;
+
+    int Sign = 0;
 
     if (Buffer->Array[Buffer->ip] == 'e' || Buffer->Array[Buffer->ip] == 'E')
     {
@@ -540,7 +565,7 @@ SNode* get_Function (SBuffer* Buffer)
         \
         Node->data.op = e_num;\
         Node->priority = prior;\
-        Node->right = get_Pow (Buffer);\
+        Node->right = get_Bracket (Buffer);\
     }
 
     #include "DEF_Operations.h"
@@ -559,6 +584,11 @@ void get_$ (SBuffer* Buffer)
     if (Buffer->Array[Buffer->ip] == '\0')
     {
         Buffer->ip++;
+    }
+
+    if (Buffer->ip <= OldPtr)
+    {
+        printf (KRED Kbright "\n|%c|\n", Buffer->Array[OldPtr]);
     }
 
     MLA (Buffer->ip > OldPtr);
@@ -1107,8 +1137,7 @@ FILE* tex_head (void)
     FILE* TEXFile = fopen ("TEX/diff.tex","w");
 
     fwprintf (TEXFile,
-    LR"(
-    \documentclass[a4paper, 12pt]{article}
+    LR"(\documentclass[a4paper, 12pt]{article}
     \usepackage{geometry}
     \geometry{a4paper,
     total={170mm,257mm},left=2cm,right=2cm,
@@ -1297,8 +1326,7 @@ void tex_node (FILE* TEXFile, SNode* Node)
     {
         fwprintf (TEXFile, L"}");
     }
-
-    if ((Node->parent != NULL)
+    else if ((Node->parent != NULL)
     && (((Node->left != NULL)
     && (Node->parent->priority > Node->priority)
     && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))
@@ -1310,13 +1338,25 @@ void tex_node (FILE* TEXFile, SNode* Node)
         fwprintf (TEXFile, L")");
     }
 
-
     return;
 }
 
 void do_pdf (const char* TEXName)
 {
-    system ("pdftex TEX/diff.tex");
+    size_t length = strlen (TEXName) + 50;
+
+    char* Line = (char*) calloc (sizeof (*TEXName), length);
+
+    sprintf (Line, "doas pdflatex -output-directory -disable-write18 %s", TEXName);
+
+    //system ("pdftex ./TEX/diff.tex");
+    system (Line);
+
+    sprintf (Line, "xdg-open TEX/diff.pdf\0", TEXName); //TODO remove!!!
+
+    system (Line);
+
+    free (Line);
 
     return;
 }
@@ -1434,7 +1474,7 @@ void print_gv_node (FILE* File, SNode* Node)
             break;
 
         case TValue:
-            fprintf (File, "<td colspan=\"2\" bgcolor = \"#f2464f\">\n"" %lg ", Node->data.val);
+            fprintf (File, "<td colspan=\"2\" bgcolor = \"#f21847\">\n"" %lg ", Node->data.val);
             break;
     }
 

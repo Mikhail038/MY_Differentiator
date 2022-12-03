@@ -26,15 +26,34 @@ DEF_OP (ADD, 1, "+", 1,
 
 DEF_OP (SUB, 2, "-", 1,
 {
-    DiffNode = UNITE (SUB, DL, DR);
+    if (Node->left != NULL)
+    {
+        DiffNode = UNITE (SUB, DL, DR);
+    }
+    else
+    {
+        DiffNode = UNITE (SUB, NULL, DR);
+    }
 },
 {
-    if (Node->left->data.val == ZERO)
+    if (Node->left == NULL && Node->right != NULL && Node->right->type == TValue && Node->right->data.val == ZERO)
     {
-        Node->left->type = TVariable;
+        delete_tree (&(Node->right));
 
-        Node->left->data.var = ' ';
+        Node->type = TValue;
+        Node->priority = VAL_PRIOR;
 
+        Node->data.val = ZERO;
+        return 1;
+    }
+
+    if ( Node->left != NULL && Node->left->data.val == ZERO)
+    {
+//         Node->left->type = TVariable;
+//
+//         Node->left->data.var = ' ';
+
+        delete_tree (&(Node->left));
         return 1;
     }
 
@@ -80,6 +99,7 @@ DEF_OP (MUL, 3, "*", 1,
 
         Node->type = TValue;
         Node->data.val = ZERO;
+        Node->priority = VAL_PRIOR;
 
         return 1;
     }
@@ -91,6 +111,7 @@ DEF_OP (MUL, 3, "*", 1,
 
         Node->type = TValue;
         Node->data.val = ZERO;
+        Node->priority = VAL_PRIOR;
 
         return 1;
     }
@@ -120,6 +141,7 @@ DEF_OP (DIV, 4, "/", 1,
 
         Node->type = TValue;
         Node->data.val = ZERO;
+        Node->priority = VAL_PRIOR;
 
         return 1;
     }
@@ -163,6 +185,7 @@ DEF_OP (POW, 5, "^", 1,
 
         Node->type = TValue;
         Node->data.val = ONE;
+        Node->priority = VAL_PRIOR;
 
         return 1;
     }
@@ -416,6 +439,7 @@ DEF_OP (LN, 22, "ln", 2,
 
         Node->type = TValue;
         Node->data.val = ONE;
+        Node->priority = VAL_PRIOR;
 
         return 1;
     }
