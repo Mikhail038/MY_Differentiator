@@ -180,17 +180,32 @@ void find_parent (SNode* Node, SNode* Parent);
 
 //=================================================================================================================================================================================================================
 
+typedef struct
+{
+    SNode* node   = NULL;
+    char   letter = '\0';
+} SSub;
+
+
 FILE* tex_head (void);
 
 void tex_tail (FILE*);
 
 void tex_tree (FILE* TEXFile, SNode* Root, ETreeMode Mode);
 
-void tex_node (FILE* TEXFile, SNode* Root);
+void tex_node (FILE* TEXFile, SNode* Node, SSub* Table, int mode);
+
+void tex_table (FILE* TEXFile, SSub* Table);
 
 void tex_print (FILE* TEXFile, SNode* Node);
 
 void do_pdf (const char* TEXName);
+
+//=================================================================================================================================================================================================================
+
+void make_subst_table (SNode* Node, SSub* Table);
+
+int count_depth (SNode* Node, SSub* Table);
 
 //=================================================================================================================================================================================================================
 

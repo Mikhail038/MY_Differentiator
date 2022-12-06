@@ -41,6 +41,8 @@
 #define FUNC_PRIOR 100
 
 //=================================================================================================================================================================================================================
+//DSL
+//=================================================================================================================================================================================================================
 
 #define UNITE(OP, Left, Right) create_OP_node (OP, Left, Right)
 #define CR_VAL(value) create_VAL_node (value)
@@ -51,16 +53,6 @@
 #define DL diff_node (Node->left)
 #define DR diff_node (Node->right)
 
-//=================================================================================================================================================================================================================
-
-//#define POISON_VAR -1
-
-// typedef struct
-// {
-//     char*   name   = NULL;
-//     int     label  = POISON_VAR;
-// } SVar;
-//
 // static SVar ArrVars[MAX_VARS]= {};
 
 //=================================================================================================================================================================================================================
@@ -235,15 +227,7 @@ SNode* get_Sub (SBuffer* Buffer)
 {
     SNode* LeftSon = get_Mul (Buffer);
 
-    // if (LeftSon == NULL)
-    // {
-    //     LeftSon = (SNode*) calloc (1, sizeof (SNode));
-    //     LeftSon->type = TVariable;
-    //     LeftSon->data.var = ' ';
-    // }
-    //print_node (LeftSon);
-
-    if (Buffer->Array[Buffer->ip] == '-' && LeftSon != NULL)
+    if (Buffer->Array[Buffer->ip] == '-')
     {
         SNode* Node = (SNode*) calloc (1, sizeof (SNode));
 
@@ -253,29 +237,10 @@ SNode* get_Sub (SBuffer* Buffer)
         Buffer->ip++;
 
         Node->type = TOperation;
+        Node->data.op = SUB;
+        Node->priority = SUB_PRIOR;
 
         Node->right = get_Sub (Buffer);
-
-        Node->data.op = SUB;
-        Node->priority = SUB_PRIOR;
-
-        return Node;
-    }
-    else if (Buffer->Array[Buffer->ip] == '-')
-    {
-        SNode* Node = (SNode*) calloc (1, sizeof (SNode));
-
-        Node->left = LeftSon;
-
-        char Operation = Buffer->Array[Buffer->ip];
-        Buffer->ip++;
-
-        Node->type = TOperation;
-
-        Node->right = get_Bracket (Buffer);
-
-        Node->data.op = SUB;
-        Node->priority = SUB_PRIOR;
 
         return Node;
     }
@@ -994,7 +959,13 @@ void print_inorder (SNode* Node)
         return;
     }
 
-    if ((Node->parent != NULL) && (((Node->left != NULL) && (Node->parent->priority > Node->priority) && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))) || (Node->type == TOperation && Node->data.op == ADD && (Node->parent->type == TOperation && Node->parent->data.op == SUB) && (Node->parent->right == Node))))
+    if ((Node->parent != NULL) &&
+    (((Node->left != NULL)
+    && (Node->parent->priority > Node->priority)
+    && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV)))
+    || (Node->type == TOperation && Node->data.op == ADD
+        && (Node->parent->type == TOperation && Node->parent->data.op == SUB)
+        && (Node->parent->right == Node))))
     {
         printf ("(");
     }
@@ -1011,7 +982,13 @@ void print_inorder (SNode* Node)
         print_inorder (Node->right);
     }
 
-    if ((Node->parent != NULL) && (((Node->left != NULL) && (Node->parent->priority > Node->priority) && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))) || (Node->type == TOperation && Node->data.op == ADD && (Node->parent->type == TOperation && Node->parent->data.op == SUB) && (Node->parent->right == Node))))
+    if ((Node->parent != NULL) &&
+    (((Node->left != NULL)
+    && (Node->parent->priority > Node->priority)
+    && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV)))
+    || (Node->type == TOperation && Node->data.op == ADD
+        && (Node->parent->type == TOperation && Node->parent->data.op == SUB)
+        && (Node->parent->right == Node))))
     {
         printf (")");
     }
@@ -1070,11 +1047,11 @@ void print_node (SNode* Node)
         case TValue:
             if (Node->data.val == M_E)
             {
-                printf ("E", Node->data.val);
+                printf ("E");
             }
             else if (Node->data.val == M_PI)
             {
-                printf ("PI", Node->data.val);
+                printf ("PI");
             }
             else
             {
@@ -1131,6 +1108,13 @@ void find_parent (SNode* Node, SNode* Parent)
 //=================================================================================================================================================================================================================
 //LaTeX//
 //=================================================================================================================================================================================================================
+
+//NO MORE THEN MAX_SUBSTS Substitutions
+
+#define MAX_SUBSTS 20
+#define DEPTH_LVL 3
+#define FIRST_SYMBOL_SUBST 'A'
+
 
 FILE* tex_head (void)
 {
@@ -1232,19 +1216,44 @@ void tex_tree (FILE* TEXFile, SNode* Root, ETreeMode Mode)
             fwprintf (TEXFile, L"default mode error!\n");
     }
 
-    tex_node (TEXFile, Root);
+    SSub Table[MAX_SUBSTS] = {};
+
+    make_subst_table (Root, Table);
+
+    // if (Table[0].node != NULL && Table[1].node == NULL)
+    // {
+    //     Table[0].node   = NULL;
+    //     Table[0].letter = '\0';
+    // }
+
+    tex_node (TEXFile, Root, Table, 0);
 
     fwprintf (TEXFile,
     LR"(
     \end{equation}
     )");
+
+    tex_table (TEXFile, Table);
 }
 
-void tex_node (FILE* TEXFile, SNode* Node)
+void tex_node (FILE* TEXFile, SNode* Node, SSub* Table, int mode)
 {
     if (Node == NULL)
     {
         return;
+    }
+
+    if (mode == 0)
+    {
+        for (int counter = 0; counter < MAX_SUBSTS; ++counter)
+        {
+            if (Table[counter].node == Node)
+            {
+                fwprintf (TEXFile, L"%c", Table[counter].letter);
+
+                return;
+            }
+        }
     }
 
     if (Node->type == TOperation && Node->data.op == DIV)
@@ -1266,7 +1275,7 @@ void tex_node (FILE* TEXFile, SNode* Node)
 
     if (Node->left != NULL)
     {
-        tex_node (TEXFile, Node->left);
+        tex_node (TEXFile, Node->left, Table, 0);
     }
 
     switch (Node->type)
@@ -1319,14 +1328,15 @@ void tex_node (FILE* TEXFile, SNode* Node)
 
     if (Node->right != NULL)
     {
-        tex_node (TEXFile, Node->right);
+        tex_node (TEXFile, Node->right, Table, 0);
     }
 
     if (Node->type == TOperation && (Node->data.op == POW || Node->data.op == DIV))
     {
         fwprintf (TEXFile, L"}");
     }
-    else if ((Node->parent != NULL)
+
+    if ((Node->parent != NULL)
     && (((Node->left != NULL)
     && (Node->parent->priority > Node->priority)
     && (!(Node->parent->type == TOperation && Node->parent->data.op == DIV))
@@ -1341,6 +1351,37 @@ void tex_node (FILE* TEXFile, SNode* Node)
     return;
 }
 
+void tex_table (FILE* TEXFile, SSub* Table)
+{
+    if (Table[0].node == 0)
+    {
+        return;
+    }
+
+    fwprintf (TEXFile,
+    LR"(
+    Где: \\
+    )");
+
+    for (int counter = 0; counter < MAX_SUBSTS; ++counter)
+    {
+        if (Table[counter].node != NULL)
+        {
+            fwprintf (TEXFile,
+            LR"(
+            \begin{equation}
+            %c =~)", Table[counter].letter);
+
+            tex_node (TEXFile, Table[counter].node, Table, 1);
+
+            fwprintf (TEXFile,
+            LR"(
+            \end{equation}
+            )");
+        }
+    }
+}
+
 void do_pdf (const char* TEXName)
 {
     size_t length = strlen (TEXName) + 50;
@@ -1352,13 +1393,86 @@ void do_pdf (const char* TEXName)
     //system ("pdftex ./TEX/diff.tex");
     system (Line);
 
-    sprintf (Line, "xdg-open TEX/diff.pdf\0", TEXName); //TODO remove!!!
+    sprintf (Line, "xdg-open TEX/diff.pdf", TEXName); //TODO remove!!!
 
     system (Line);
 
     free (Line);
 
     return;
+}
+
+//=================================================================================================================================================================================================================
+//Substitutions//
+//=================================================================================================================================================================================================================
+
+void make_subst_table (SNode* Node, SSub* Table)
+{
+    MCA (Node != NULL, (void) 0);
+
+    int Depth = count_depth (Node, Table) - 1;
+
+    if (Depth >= DEPTH_LVL && Node->parent != NULL)
+    {
+        for (int counter = 0; counter < MAX_SUBSTS; ++counter)
+        {
+            if (Table[counter].node == NULL)
+            {
+                Table[counter].node = Node;
+                Table[counter].letter = FIRST_SYMBOL_SUBST + counter;
+
+                break;
+            }
+        }
+    }
+
+    if (Node->left != NULL)
+    {
+        make_subst_table (Node->left, Table);
+    }
+
+    if (Node->right != NULL)
+    {
+        make_subst_table (Node->right, Table);
+    }
+}
+
+int count_depth (SNode* Node, SSub* Table)
+{
+    // for (int counter = 0; counter < MAX_SUBSTS; ++counter)
+    // {
+    //     if (Node == Table[counter].node)
+    //     {
+    //         return 1;
+    //     }
+    // }
+
+    if ((Node->left == NULL) && (Node->right == NULL))
+    {
+        return 1;
+    }
+
+    int left_depth  = 0;
+    int right_depth = 0;
+
+    if (Node->left != NULL)
+    {
+        left_depth = count_depth (Node->left, Table);
+    }
+
+    if (Node->right != NULL)
+    {
+        right_depth = count_depth (Node->right, Table);
+    }
+
+    left_depth = (left_depth > right_depth) ? left_depth  : right_depth;
+
+    if (left_depth > DEPTH_LVL)
+    {
+        left_depth = left_depth - DEPTH_LVL;
+    }
+
+    return left_depth + 1;
 }
 
 //=================================================================================================================================================================================================================
@@ -1457,7 +1571,6 @@ void print_gv_node (FILE* File, SNode* Node)
         case TOperation:
             switch (Node->data.op)
             {
-
                 #define DEF_OP(e_num, num, line, size, diff_f, collapse_f, calc_f, prior, print_f) \
                 case e_num: \
                     fprintf (File, "<td colspan=\"2\" bgcolor = \"#39c3ed\">\n" " %s ", line); \
@@ -1466,8 +1579,13 @@ void print_gv_node (FILE* File, SNode* Node)
                     #include "DEF_Operations.h"
 
                 #undef DEF_OP
+
+                default:
+                MCA (0, (void) 0);
             }
             break;
+
+
 
         case TVariable:
             fprintf (File, "<td colspan=\"2\" bgcolor = \"#1cfc03\">\n"" %c ", Node->data.var);
@@ -1476,6 +1594,9 @@ void print_gv_node (FILE* File, SNode* Node)
         case TValue:
             fprintf (File, "<td colspan=\"2\" bgcolor = \"#f21847\">\n"" %lg ", Node->data.val);
             break;
+
+        default:
+            MCA (0, (void) 0);
     }
 
     return;
